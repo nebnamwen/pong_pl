@@ -17,13 +17,12 @@
 #
 # COPYING: You are free to copy this file and distribute it without
 # modification.  You may also modify it for your own use without restriction.
-# If you distribute a modified version of this file, you must add a comment
+# If you distribute a modified version of this file, please add a comment
 # below this section documenting your changes.  You may not modify this
 # license paragraph.
-#
-# -- Benjamin Newman ( bnewman AT sccs DOT swarthmore DOT edu 
 
 $this_game = "pong";
+$this_script = __FILE__;
 
 sub setup {
     %cswitch = ();
@@ -33,7 +32,7 @@ sub setup {
     $beep = ($cswitch{"q"}) ? "" : chr 7;
     $myself = getpwuid $<;
     $my_foe = $ARGV[0];
-    die "Usage: \$this_game [options] <opponent>\n" unless ($my_foe);
+    die "Usage: $this_script [options] <opponent>\n" unless ($my_foe);
     ($myself, $my_foe) = ($my_foe, $myself) if ($cswitch{"t"});
     $esc = chr 27;
     $deg = "$esc(0f$esc(B";
@@ -81,7 +80,7 @@ sub handshake {
         open WRITE_FH, "| write $my_foe";
         my $oldfh = select WRITE_FH;
         print "I, $myself, challenge you, $my_foe, to a game of $this_game!\n";
-        print "To accept the challenge, type: $this_game $myself\n";
+        print "To accept the challenge, run: $this_script $myself\n";
         select $oldfh;
         close WRITE_FH;
 
@@ -93,6 +92,7 @@ sub handshake {
             if (read_char("STDIN") eq "q") {
                 rmdir $tmp_dir;
                 print "You aborted the game of $this_game before $my_foe answered your challenge.\n";
+		cook_io(1);
                 exit 0;
             }
         }
@@ -282,8 +282,8 @@ sub update_state {
     $nbeeps = 0;
 
     foreach (keys %padpos) {
-        $padpos{$_}-- if (($move{$_} eq ",") and ($padpos{$_} > -14));
-        $padpos{$_}++ if (($move{$_} eq ".") and ($padpos{$_} < 14));
+        $padpos{$_}-- if (($move{$_} =~ /[,<]/) and ($padpos{$_} > -14));
+        $padpos{$_}++ if (($move{$_} =~ /[.>]/) and ($padpos{$_} < 14));
         $missed{$_} -= $missed{$_} <=> 0;
     }
 
@@ -349,7 +349,7 @@ sub play_game {
     setup_game();
     for (;;) {
         select undef, undef, undef, $delay if $delay;
-        $move{$myself} = get_move();
+        $move{$myself} = get_move() || ($move{$myself} =~ /<|>/ ? $move{$myself} : undef);
         print IPC_OUT $move{$myself}, "\n";
         chomp ($move{$my_foe} = <IPC_IN>);
         print IPC_OUT hash_state(0);
